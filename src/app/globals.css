@@ -1,0 +1,28 @@
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+
+h2 {
+  @apply text-2xl sm:text-4xl font-semibold text-white;
+}
+.h3 {
+  @apply text-xl sm:text-2xl leading-[150%] tracking-[1%];
+}
+.control-form {
+  @apply flex flex-col gap-2;
+}
+label {
+  @apply text-sm font-normal sm:text-base sm:font-medium text-white;
+}
+input {
+  @apply py-3 px-4 rounded-lg outline-none border border-transparent bg-[#0B0B17] text-white placeholder:text-[#3D3D49] placeholder:text-sm placeholder:font-normal focus:border-[#59CDFF] w-full;
+}
+
+/* input[type="checkbox"] {
+  @apply !w-6 !h-3 rounded flex cursor-pointer bg-transparent appearance-none border-2 border-gray-400 checked:bg-blue-700 checked:border-blue-700 focus:ring-2 focus:ring-primary-200 focus:ring-offset-2;
+} */
+button {
+  @apply flex w-full gap-2 px-4 py-3 rounded-xl items-center cursor-pointer  justify-center;
+}
+.button--primary {
+  @apply bg-primary-150 text-lg font-medium leading-[140%] tracking-[-2%] outline-none border-0 text-white;
+}
