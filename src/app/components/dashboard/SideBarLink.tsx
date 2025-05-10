@@ -80,8 +80,8 @@ export const SideBarLink = () => {
             )}
             {/* tooltip */}
             <dialog
-              //   role="tooltip"
-              className="hidden group-hover:flex z-[99999] -right-20 absolute py-1 px-3 rounded-[10px] bg-white text-base font-normal text-[#030306] top-1/2 -translate-y-1/2 appearance-none"
+              // role="tooltip"
+              className="hidden group-hover:flex z-[99999] left-[110%] absolute py-1 px-3 rounded-[10px] bg-white text-base font-normal text-[#030306] top-1/2 -translate-y-1/2 appearance-none"
             >
               {link.linkName}
               <div className="absolute -left-[8px] top-1/2 -translate-y-1/2">
