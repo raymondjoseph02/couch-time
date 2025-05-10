@@ -24,8 +24,7 @@ export const DashBoardLayout = ({ children }: AuthProps) => {
 
   return (
     <div className="flex bg-black scrollbar">
-      <div className="fixed hidden sm:block">
-      <div className="fixed z-1000">
+      <div className="fixed hidden sm:block z-1000">
         <SideBar />
       </div>
       <div className="pt-62  px-4 sm:px-8 pb-5  space-y-8 bg-[#030306] grow sm:ml-23 scrollbar scrollbar-track-green-400 scrollbar-thumb-red-300">

@@ -1,47 +1,69 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import couch_bg from "@/assets/image/couch_logo.webp";
-import Select from "react-select";
+import { CategoryDialog } from "../common/CategoryDialog";
 export const NavBar = () => {
   const [activeTab, setActiveTab] = useState("All");
+  const [isCategory, setIsCategory] = useState(false);
   const tabs = [
     {
       tabName: "All",
       action: () => {
         setActiveTab("All");
+        if (isCategory) {
+          setIsCategory(!isCategory);
+        }
       },
     },
     {
       tabName: "Comedy",
       action: () => {
         setActiveTab("Comedy");
+        if (isCategory) {
+          setIsCategory(!isCategory);
+        }
       },
     },
     {
       tabName: "Fantasy",
       action: () => {
         setActiveTab("Fantasy");
+        if (isCategory) {
+          setIsCategory(!isCategory);
+        }
       },
     },
     {
       tabName: "Drama",
       action: () => {
         setActiveTab("Drama");
+        if (isCategory) {
+          setIsCategory(!isCategory);
+        }
       },
     },
     {
       tabName: "History",
       action: () => {
         setActiveTab("History");
+        if (isCategory) {
+          setIsCategory(!isCategory);
+        }
       },
     },
     {
       tabName: "Horror",
       action: () => {
         setActiveTab("Horror");
+        if (isCategory) {
+          setIsCategory(!isCategory);
+        }
       },
     },
   ];
+  const openCategoryDialog = () => {
+    setIsCategory(!isCategory);
+  };
   return (
     <header
       style={{
@@ -87,12 +109,21 @@ export const NavBar = () => {
             // onClick={}
             className=" px-5 py-2 cursor-pointer w-fit bg-gradient-to-l from-[#DB3422] to-[#EF7823] rounded-xl"
           >
-            <span className="relative z-20 text-white"> All</span>
+            <span className="relative z-20 text-white"> {activeTab}</span>
           </div>
         </div>
-        <div className="px-6 py-2 text-white border border-gray-200 rounded-full">
+        <div
+          role="button"
+          onClick={openCategoryDialog}
+          className="px-6 py-2 text-white border border-gray-200 rounded-full"
+        >
           category
         </div>
+        <CategoryDialog
+          isOpen={isCategory}
+          handleClose={openCategoryDialog}
+          categories={tabs}
+        />
       </div>
     </header>
   );
