@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import couch_bg from "@/assets/image/couch_logo.webp";
-
+import Select from "react-select";
 export const NavBar = () => {
   const [activeTab, setActiveTab] = useState("All");
   const tabs = [
@@ -51,12 +51,12 @@ export const NavBar = () => {
         backgroundPositionX: "calc(100% - 30px)",
         backgroundPositionY: "0px",
       }}
-      className="space-y-8 bg-no-repeat  fixed  pb-5 z-100 w-[calc(100vw-100px)] bg-[#030306] left-25 pl-5 top-0 pt-16"
+      className="space-y-8 bg-no-repeat  fixed  pb-5 z-100 w-full sm:w-[calc(100vw-100px)] bg-[#030306] left-0 sm:left-25 px-4 xs:pl-5 top-0 pt-16"
     >
       <div>
         <h1 className="text-4xl font-semibold text-white">My cinema</h1>
       </div>
-      <div className="flex gap-3">
+      <div className="hidden gap-3 sm:flex">
         {tabs.map((tab, index) => {
           const isActive =
             activeTab.toLocaleLowerCase() === tab.tabName.toLocaleLowerCase();
@@ -79,6 +79,20 @@ export const NavBar = () => {
             </div>
           );
         })}
+      </div>
+      <div className="flex items-center gap-5">
+        <div>
+          <div
+            role="tab"
+            // onClick={}
+            className=" px-5 py-2 cursor-pointer w-fit bg-gradient-to-l from-[#DB3422] to-[#EF7823] rounded-xl"
+          >
+            <span className="relative z-20 text-white"> All</span>
+          </div>
+        </div>
+        <div className="px-6 py-2 text-white border border-gray-200 rounded-full">
+          category
+        </div>
       </div>
     </header>
   );
