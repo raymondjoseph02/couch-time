@@ -17,6 +17,7 @@ Every phase ends with something complete, so you can stop after any of them.
 | [PRD.md](./PRD.md) | **Product Requirements Document.** Lists every feature the backend must support (~110 requirements), the data model, the full API contract, quality targets and the week-by-week plan. | First, end to end. Come back to it at the start of each week. |
 | [adr/](./adr/) | **Architecture Decision Records.** One short document per big technical choice: what was decided, why, what else was considered and what it costs. | Read the ADR for a topic just before you start building that part. |
 | [adr/0000-template.md](./adr/0000-template.md) | The template for writing your own ADRs. | When you make a decision that isn't covered yet. |
+| [STEPS.md](./STEPS.md) | **Step-by-step checklist**: what to do, in order, week by week (starting with a week 0 for setup and SQL basics), linking to the PRD and ADRs. | Every working session. This is your to-do list. |
 | [EXTERNAL-NEEDS.md](./EXTERNAL-NEEDS.md) | **Checklist of everything external**: accounts, software, data sources, secrets, attribution and estimated costs. | Before week 1, and before weeks 9, 14 and 15. |
 
 ## The ADRs
