@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Accepted |
+| Status | Accepted; amended by [ADR 0032](./0032-catalogue-data-and-video-sources.md) (MovieLens ratings for offline evaluation; boost playable titles) |
 | Date | 2026-10-04 |
 | Phase | Week 16 |
 | Related | Extends [ADR 0016](./0016-trending-and-recommendations.md); uses [ADR 0026](./0026-embeddings-and-pgvector.md), [ADR 0029](./0029-llm-integration-claude.md), [ADR 0031](./0031-experiments-and-feature-flags.md); [PRD §5.15](../PRD.md#515-ai-recommendations) |

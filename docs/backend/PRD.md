@@ -4,7 +4,7 @@
 |---|---|
 | Product | Couch Time, a video streaming web app |
 | Document | Backend PRD |
-| Version | 1.1 (adds profiles, series, notifications, watch parties, payments and AI features) |
+| Version | 1.2 (1.1 added profiles, series, notifications, watch parties, payments and AI; 1.2 adds data and video sources: TMDB + self-hosted streams + MovieLens) |
 | Date | 4 October 2026 |
 | Owner | Raymond Joseph |
 | Status | Draft, ready to build |
@@ -109,8 +109,8 @@ See [ADR 0010](./adr/0010-authorization-roles.md).
 |---|---|---|
 | Sign-up / sign-in | Forms only; Google button commented out; wallet buttons do nothing. | Email + password, Google, MetaMask (and later Phantom/Starknet), with real sessions. |
 | Session | `token` cookie read without verifying its signature. | Signed, short-lived access token plus rotating refresh token, both httpOnly cookies. |
-| Catalogue | One hardcoded object in `server.js`. | `videos` table with genres, people, assets, publish status. |
-| Video files | One folder of `.ts` segments served statically. | Uploads in object storage, transcoded to multi-bitrate HLS by a worker. |
+| Catalogue | One hardcoded object in `server.js`. | `videos` table with genres, people, assets and publish status, **imported from TMDB** (~200 titles) ([ADR 0032](./adr/0032-catalogue-data-and-video-sources.md)). |
+| Video files | One folder of `.ts` segments served statically. | ~6 self-hosted, legally usable films (Blender open movies + public-domain classics) in object storage, transcoded to multi-bitrate HLS by a worker. All other titles are **information only**, with YouTube trailers. |
 | Thumbnails | Frontend uses a placeholder image everywhere. | Poster and backdrop images generated and stored per video. |
 | Watch progress | In-memory map, lost on restart. | `watch_progress` table, throttled writes. |
 | Bookmarks | `localStorage` (`bookmarked_videos`). | `bookmarks` table, plus a one-time import from `localStorage`. |
@@ -179,8 +179,13 @@ Each requirement has an ID, a priority (**P0** = must have for v1, **P1** = shou
 | CAT-5 | Trailer clip info (`src`, `start`, `end`). | P0 | `VideoPreviewer.tsx` |
 | CAT-6 | People (cast and crew) and their filmography. | P2 | New page |
 | CAT-7 | Slugs for readable URLs (`/video/in-the-grey`). | P2 | Routing |
+| CAT-8 | Import ~200 titles (info, posters, cast, trailer keys) from **TMDB** with an idempotent script; weekly sync job; admin overrides win ([ADR 0032](./adr/0032-catalogue-data-and-video-sources.md)). | P0 | — |
+| CAT-9 | Every title has `playable` (we host a stream) and a `trailer` (our HLS clip or a YouTube key). | P0 | `VideoCard`, details page |
+| CAT-10 | "Watch now" filter/row showing only playable titles. | P1 | Dashboard row |
+| CAT-11 | About page with TMDB attribution and each streamable video's licence. | P0 | New About page |
 
 **Acceptance criteria:**
+- Running the TMDB import twice creates no duplicates (upsert by `tmdb_id`).
 - Drafts and unpublished videos never appear to non-admins, including in search, trending and recommendations.
 - Every video response includes the per-user fields `progress`, `action` and `startAt` (null, `"play"` and `0` for guests). This keeps the contract the frontend already uses.
 
@@ -193,6 +198,8 @@ Each requirement has an ID, a priority (**P0** = must have for v1, **P1** = shou
 | PLAY-3 | Subtitles as WebVTT tracks listed in the master playlist. | P1 | Details page "Subtitles" |
 | PLAY-4 | Guests can play trailers only; full playback needs a signed-in viewer. | P0 | Previewer vs details page |
 | PLAY-5 | Thumbnails strip (sprite + VTT) for scrubbing previews. | P2 | Progress bar hover |
+| PLAY-6 | Information-only titles: preview and "Watch trailer" use the **YouTube embed** (TMDB trailer key); the main button shows "Not available to stream". `/playback` returns 409 `/not-streamable`. | P0 | `VideoPreviewer.tsx`, details page |
+| PLAY-7 | Progress, Continue Watching, watch parties, subtitles and stream heartbeats only accept playable titles. | P0 | — |
 
 ### 5.5 Watch progress and history
 
@@ -462,8 +469,15 @@ erDiagram
 | maturity_rating | enum `G` / `PG` / `PG-13` / `R` / `NC-17` | |
 | language | text | ISO 639-1, e.g. `en`. |
 | duration_seconds | int, nullable | Filled in by the transcoder. |
-| trailer_start, trailer_end | int | Seconds into the video used for the preview clip. |
-| status | enum `draft` / `processing` / `ready` / `failed` | Pipeline state. |
+| trailer_start, trailer_end | int | Seconds into the video used for the preview clip (playable titles). |
+| tmdb_id | int, unique, nullable | Link to TMDB ([ADR 0032](./adr/0032-catalogue-data-and-video-sources.md)). |
+| source | enum `tmdb` / `manual` | Where the info came from. |
+| trailer_youtube_key | text, nullable | YouTube trailer for information-only titles. |
+| stream_status | enum `none` / `processing` / `ready` / `failed` | Whether we host the video. `ready` = playable. |
+| poster_path, backdrop_path | text, nullable | TMDB image paths (full URL built from TMDB's image CDN). |
+| license | text, nullable | Required when `stream_status ≠ none`, e.g. "CC-BY 3.0, Blender Foundation". |
+| last_synced_at | timestamptz, nullable | Last TMDB refresh. |
+| ~~status~~ | — | Replaced by `stream_status` below (v1.2). Publishing is controlled by `published_at`. |
 | published_at | timestamptz, nullable | Null means not public. |
 | featured_from, featured_until | timestamptz, nullable | Spotlight window (CAT-4). |
 | trending_score | double | Updated by a scheduled job ([ADR 0016](./adr/0016-trending-and-recommendations.md)). |
@@ -663,11 +677,29 @@ This extends the shape the frontend already uses in `src/app/type/type.tsx`, so 
   "src": "https://cdn…/trailer.m3u8",
   "start": 120,
   "end": 195,
+  "tmdbId": 45745,
+  "playable": true,
+  "trailer": { "type": "hls", "src": "https://cdn…/trailer.m3u8", "start": 120, "end": 195 },
   "progress": { "position": 1800, "percent": 31, "updatedAt": "2026-10-04T10:00:00Z" },
   "action": "resume",
   "startAt": 1800
 }
 ```
+
+An **information-only** title (TMDB data, no stream) looks the same, except:
+
+```json
+{
+  "playable": false,
+  "trailer": { "type": "youtube", "key": "zSWdZVtXT7E" },
+  "src": null,
+  "progress": null,
+  "action": "trailer",
+  "startAt": 0
+}
+```
+
+`action` gains a third value, `"trailer"`, so the frontend shows **Watch trailer** instead of **Play**/**Resume**. (The TMDB ids and YouTube keys here are illustrative.)
 
 `genre` (singular) is kept for backwards compatibility, because the current frontend reads it. Remove it after the frontend switches to `genres`.
 
@@ -920,7 +952,9 @@ Weeks 1 to 5 build the core; weeks 6 and 7 are the hardest (media); weeks 8 and 
 
 - **Build**
   - Prisma schema for `videos`, `genres`, `video_genres`, `people`, `video_credits`, `video_assets`, `subtitles`.
-  - Migrations; a seed script with 30+ videos (use public-domain trailers and the existing `my-stream` HLS for all of them at first).
+  - Migrations; a **TMDB import script** (`npm run tmdb:import`) that upserts ~200 titles by `tmdb_id`: info, posters, cast, genres, trailer keys ([ADR 0032](./adr/0032-catalogue-data-and-video-sources.md)). Pick the movies MovieLens users rated most, so week 16's ratings data overlaps.
+  - **Your ~6 streamable films:** download Blender open movies and checked public-domain classics, convert them to HLS by hand with ffmpeg (the pipeline comes in week 7), and mark them `stream_status = 'ready'` with their `license`. Everything else stays `stream_status = 'none'`.
+  - `playable` + `trailer` on every video response; frontend: **Play/Resume** for playable titles, **Watch trailer** (YouTube embed) for the rest; an About page with TMDB attribution and licences.
   - `GET /videos` with filters and **cursor pagination**; `GET /videos/:idOrSlug`; `GET /genres`; `GET /videos/spotlight`.
   - Zod request validation and a problem-details error handler ([ADR 0007](./adr/0007-validation-and-error-format.md)).
   - OpenAPI spec generated from the Zod schemas; Swagger UI at `/docs`.
@@ -979,7 +1013,8 @@ Weeks 1 to 5 build the core; weeks 6 and 7 are the hardest (media); weeks 8 and 
   - `POST /admin/videos/:id/upload-url`: a pre-signed PUT with size and type limits.
   - `POST /admin/videos/:id/upload-complete`: check the object exists, then queue the job (the job is a stub this week).
   - `GET /videos/:id/playback`: a signed URL for the master playlist. Decide how segment URLs get signed (signed cookies vs a playlist-rewriting proxy) and **write the ADR yourself**.
-  - Move the existing `my-stream` HLS into MinIO; stop serving `/stream` from disk.
+  - Move the existing `my-stream` HLS and your ~6 hand-converted films into MinIO; stop serving `/stream` from disk.
+  - Keep an eye on the storage budget (~20 GB): about 1–4 GB per full-length film and 0.4–0.7 GB per short, for 3 renditions.
   - A small admin upload page (it can live under `/dashboard/admin`).
 - **Learn:** why big files shouldn't pass through your API; pre-signed URLs; S3 concepts (bucket, key, ACL, CORS on a bucket); HTTP range requests; content types.
 - **Done when:** a 1 GB upload works without the API's memory growing; playback works only with a valid, unexpired URL.
@@ -1095,7 +1130,7 @@ Weeks 1 to 5 build the core; weeks 6 and 7 are the hardest (media); weeks 8 and 
 
 ## Phase 3: AI (weeks 15–18)
 
-Before starting, re-read [ADR 0026](./adr/0026-embeddings-and-pgvector.md) to [ADR 0029](./adr/0029-llm-integration-claude.md), and check the current model list, pricing and SDK docs (AI APIs change fast). Create an Anthropic API key with a **monthly spend limit**, and seed a richer catalogue (200+ titles with real-looking synopses) so semantic features have something to work with.
+Before starting, re-read [ADR 0026](./adr/0026-embeddings-and-pgvector.md) to [ADR 0029](./adr/0029-llm-integration-claude.md), and check the current model list, pricing and SDK docs (AI APIs change fast). Create an Anthropic API key with a **monthly spend limit**. Your TMDB catalogue from week 2 (~200 titles with real synopses) is what the semantic features work with; re-run `tmdb:sync` first so it's fresh.
 
 ### Week 15: Embeddings, pgvector and hybrid search (25–31 January)
 
@@ -1114,14 +1149,15 @@ Before starting, re-read [ADR 0026](./adr/0026-embeddings-and-pgvector.md) to [A
 **Goal:** personal "For You" rows that are measurably better.
 
 - **Build**
-  - Synthetic user generator (profiles with hidden tastes → realistic watch/rating events).
+  - Load **MovieLens** ratings and map them to your titles via `links.csv` (MovieLens id → TMDB id) for offline evaluation ([ADR 0032](./adr/0032-catalogue-data-and-video-sources.md)). Keep a small synthetic-user generator only for cases MovieLens can't cover (kids profiles, your 6 playable titles).
+  - Boost playable titles in ranking and return `playable` on every recommendation.
   - Taste vectors; candidate sources; the scoring function; MMR diversity; cold-start onboarding ([ADR 0027](./adr/0027-ai-recommendations-hybrid.md)).
   - Precompute job + Redis cache; `/me/recommendations` with `recId`; impression/click events.
   - LLM-written reasons (structured output, low effort, cached; nightly batch for top rows).
   - Feature flags + experiments + results view; A/B test of the ADR 0016 rules vs the hybrid ([ADR 0031](./adr/0031-experiments-and-feature-flags.md)).
   - Offline eval (Recall@10, NDCG@10, coverage) in CI.
 - **Learn:** two-stage recommender design; implicit feedback; cold start; offline vs online evaluation; A/B statistics.
-- **Done when:** the offline report shows the hybrid beating the rules; opposite-taste synthetic profiles get clearly different rows; the experiment results page works.
+- **Done when:** the offline report (on MovieLens ratings) shows the hybrid beating the rules; profiles with opposite tastes get clearly different rows; the experiment results page works.
 
 ### Week 17: Couch Concierge assistant (8–14 February)
 
@@ -1161,7 +1197,7 @@ The plan is 18 working weeks; real life adds 2–4 more. If you fall behind, cut
 | Milestone | End of week | Demo |
 |---|---|---|
 | M1: Typed foundation | 1 | Frontend runs unchanged on the new TS server. |
-| M2: Real catalogue | 2 | Seeded catalogue, docs at `/docs`. |
+| M2: Real catalogue | 2 | ~200 TMDB titles with posters and trailers, ~6 of them playable; docs at `/docs`. |
 | M3: Accounts | 4 | Sign in with password, Google or MetaMask; account and settings pages. |
 | M4: Personal data | 5 | Cross-device bookmarks, progress and search. |
 | M5: Media pipeline | 7 | Upload → adaptive playback, no manual steps. |
@@ -1187,7 +1223,11 @@ The plan is 18 working weeks; real life adds 2–4 more. If you fall behind, cut
 | LLM costs grow unexpectedly | Surprise bill | Provider spend limit; per-profile budgets; `ai_usage` dashboard and daily alert; batch + caching + low effort for high-volume routes; kill switches. |
 | LLM output is wrong or unsafe | Bad recommendations, unsafe content for kids | Grounding check, structured outputs with validation, filters applied below the AI layer, human review for sensitive fields, eval suites in CI. |
 | Prompt injection via catalogue text or chat | The assistant misbehaves | Treat all content as data; least-privilege tools; confirmation for writes; injection eval cases. |
-| Not enough real usage data for recommendations or A/B tests | Metrics are meaningless | Synthetic users with hidden tastes; offline eval first; treat online results from a handful of users as a demo, not proof. |
+| Not enough real usage data for recommendations or A/B tests | Metrics are meaningless | MovieLens ratings for offline evaluation (synthetic users as a fallback); treat online results from a handful of users as a demo, not proof. |
+| Using films we don't have the rights to | Legal trouble if deployed | Stream only Blender/Creative Commons and checked public-domain films; record each `license`; everything else is information-only. |
+| Breaking TMDB's terms | API key revoked | Credit TMDB on the About page; respect rate limits; non-commercial use only (a commercial licence is needed if the project ever makes money). |
+| Users are recommended titles they can't watch | Frustration | `playable` flag on everything; playable boost in ranking; clear "Trailer only" labels; a "Watch now" row. |
+| Storage runs out | Can't add films | ~20 GB budget ≈ 6–10 films; use shorts for pipeline testing; delete source files after transcoding. |
 | AI APIs and models change during the project | Docs and code drift | Model IDs in config; pin SDK versions; re-read the docs at the start of Phase 3. |
 | Whisper is too slow on a laptop | Week 18 drags | Use the smallest model and short clips; a hosted STT API behind the same interface is the fallback. |
 | WebSocket hosting quirks | Watch party breaks in production | Check platform WebSocket support early; WebSocket-only transport; Redis adapter. |
@@ -1208,6 +1248,8 @@ Decide these as you go, and record each answer as an ADR.
 8. Should recommendation reasons be generated live or only precomputed in batches? Measure latency and cost in week 16.
 9. Do watch-party members on lower plans get Premium features while inside a Premium host's party?
 10. How long should AI conversations and `view_events` be kept, and should users be able to opt out of personalisation entirely?
+11. Hotlink TMDB's image CDN for posters, or copy them into your own storage (faster, but uses storage and needs a sync)?
+12. Should information-only titles be hidden on a public deployment, leaving only the playable ones visible, or kept as "trailer only"?
 
 ---
 
@@ -1246,3 +1288,24 @@ Decide these as you go, and record each answer as an ADR.
 | **Eval** | An automated test suite for AI behaviour, scored on many examples. |
 | **Feature flag / kill switch** | A runtime toggle to turn features on or off without deploying. |
 | **A/B test** | Showing different variants to random groups of users and comparing a metric. |
+| **TMDB** | The Movie Database: a free (non-commercial) API for movie and TV information, posters and trailer links. |
+| **MovieLens** | A free research dataset of millions of real user movie ratings. |
+| **Playable / information-only title** | A title we host a video for (HLS) vs one we only have info and a YouTube trailer for. |
+| **Public domain / Creative Commons** | Films free of copyright, or licensed for reuse with conditions (usually credit). |
+
+---
+
+## 15. Data and content sources
+
+Decided in [ADR 0032](./adr/0032-catalogue-data-and-video-sources.md).
+
+| Need | Source | Cost | Used from |
+|---|---|---|---|
+| Movie and TV info, posters, backdrops, cast, trailer keys | [TMDB API](https://developer.themoviedb.org/docs) (credit TMDB; non-commercial) | $0 (reportedly ~$149/month if commercial) | Week 2 |
+| Streamable films (~6 to start) | [Blender open movies](https://studio.blender.org/films/) (*Sintel*, *Big Buck Bunny*, *Tears of Steel*, *Elephants Dream*, *Spring*) and checked public-domain classics from the [Internet Archive](https://archive.org/details/feature_films) (*Night of the Living Dead*, *Nosferatu*…) | $0 | Week 2 (by hand), week 7 (pipeline) |
+| Short clips to test uploads and transcoding | [Pexels](https://www.pexels.com/api/documentation/) / [Pixabay](https://pixabay.com/api/docs/) APIs | $0 | Weeks 6–7 |
+| Trailers for information-only titles | YouTube embed (keys from TMDB) | $0 | Week 2 |
+| Real user ratings for recommendation evaluation | [MovieLens](https://grouplens.org/datasets/movielens/) (`links.csv` maps to TMDB ids) | $0 | Week 16 |
+| Optional: IMDb / Rotten Tomatoes scores | [OMDb](https://www.omdbapi.com/) | $1/month | Any time (P2) |
+
+**Rules:** stream only videos you have the right to; record each streamed film's licence; show TMDB's notice and logo on the About page; cite MovieLens as its terms require.

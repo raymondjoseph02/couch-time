@@ -17,6 +17,7 @@ Every phase ends with something complete, so you can stop after any of them.
 | [PRD.md](./PRD.md) | **Product Requirements Document.** Lists every feature the backend must support (~110 requirements), the data model, the full API contract, quality targets and the week-by-week plan. | First, end to end. Come back to it at the start of each week. |
 | [adr/](./adr/) | **Architecture Decision Records.** One short document per big technical choice: what was decided, why, what else was considered and what it costs. | Read the ADR for a topic just before you start building that part. |
 | [adr/0000-template.md](./adr/0000-template.md) | The template for writing your own ADRs. | When you make a decision that isn't covered yet. |
+| [EXTERNAL-NEEDS.md](./EXTERNAL-NEEDS.md) | **Checklist of everything external**: accounts, software, data sources, secrets, attribution and estimated costs. | Before week 1, and before weeks 9, 14 and 15. |
 
 ## The ADRs
 
@@ -55,6 +56,8 @@ Every phase ends with something complete, so you can stop after any of them.
 | [0029](./adr/0029-llm-integration-claude.md) | Claude integration and the Couch Concierge assistant | Weeks 15–18 |
 | [0030](./adr/0030-ai-media-enrichment-pipeline.md) | AI enrichment: subtitles, translation, tags, review queue | Week 18 |
 | [0031](./adr/0031-experiments-and-feature-flags.md) | Feature flags, A/B experiments, analytics, audit log | Weeks 11 and 16 |
+| **Data sources** | | |
+| [0032](./adr/0032-catalogue-data-and-video-sources.md) | Info from TMDB; ~6 self-hosted, legally usable films stream; MovieLens ratings | Weeks 2, 6–7, 16 |
 
 ## How to use this plan
 
@@ -69,6 +72,6 @@ Every phase ends with something complete, so you can stop after any of them.
 | Field | Value |
 |---|---|
 | Created | 4 October 2026 |
-| Updated | 4 October 2026: v1.1 adds Phases 2 and 3 (ADRs 0021–0031) |
+| Updated | 4 October 2026: v1.1 adds Phases 2 and 3 (ADRs 0021–0031); v1.2 adds data and video sources (ADR 0032, PRD §15) |
 | Planned duration | 18 working weeks (5 October 2026 to 21 February 2027, with a 2-week holiday break), at 10–15 hours per week |
 | Starting point | `server.js`: Express in plain JavaScript, data kept in memory, one hardcoded video, unverified JWT decoding |

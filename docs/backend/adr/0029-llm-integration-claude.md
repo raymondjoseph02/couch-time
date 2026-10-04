@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Accepted |
+| Status | Accepted; amended by [ADR 0032](./0032-catalogue-data-and-video-sources.md) (tools return `playable`; the assistant prefers streamable titles) |
 | Date | 2026-10-04 |
 | Phase | Week 17 (assistant); used from Week 15 (search parsing), 16 (explanations), 18 (enrichment) |
 | Related | [ADR 0027](./0027-ai-recommendations-hybrid.md), [ADR 0028](./0028-hybrid-semantic-search.md), [ADR 0030](./0030-ai-media-enrichment-pipeline.md), [ADR 0023](./0023-realtime-websockets-watch-party.md), [PRD §5.16](../PRD.md#516-ai-search-and-assistant) |

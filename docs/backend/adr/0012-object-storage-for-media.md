@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Accepted |
+| Status | Accepted; amended by [ADR 0032](./0032-catalogue-data-and-video-sources.md) (only self-hosted, playable titles have media in storage) |
 | Date | 2026-10-04 |
 | Phase | Week 6 |
 | Related | [PRD §5.4](../PRD.md#54-playback), [PRD §5.8](../PRD.md#58-admin-and-media-pipeline), [ADR 0013](./0013-transcoding-pipeline-job-queue.md) |
